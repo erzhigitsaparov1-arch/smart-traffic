@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="kk"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.json"><script>if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js")</script><title>Smart Traffic City — Ақылды бағдаршам</title>
+<style>
+:root{--bg:#eceeea;--pn:#fff;--ink:#1b2220;--mu:#5b6763;--ln:#d3d9d5;--ac:#0e7a5a;--ok:#16a34a;--mid:#d97706;--bad:#dc2626;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121718;--pn:#1c2426;--ink:#e7eeeb;--mu:#98a6a1;--ln:#2f3b3d;--ac:#3ecf9e;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#121718;--pn:#1c2426;--ink:#e7eeeb;--mu:#98a6a1;--ln:#2f3b3d;--ac:#3ecf9e;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 "Trebuchet MS","Segoe UI",system-ui,sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:18px 14px 40px}
+h1{margin:0;font-size:26px}h2{font-size:15px;margin:14px 0 6px}
+.sub{margin:2px 0 14px;color:var(--mu)}
+.grid{display:grid;grid-template-columns:minmax(0,640px) minmax(0,1fr);gap:18px;align-items:start}
+@media(max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+canvas{width:100%;height:auto;border-radius:10px;display:block}
+.pn{background:var(--pn);border:1px solid var(--ln);border-radius:10px;padding:12px 14px}
+#st{margin-top:8px;font-weight:600}
+.seg{display:flex;gap:4px;flex-wrap:wrap}
+button{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--ln);border-radius:8px;padding:6px 11px;cursor:pointer}
+button:hover{border-color:var(--ac)}button:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.big{font-size:22px;font-weight:700}.mu{color:var(--mu);font-size:13px}
+.q{display:grid;grid-template-columns:84px 1fr 78px;gap:8px;align-items:center;margin:4px 0;font-size:13px}
+.bar{height:10px;background:var(--bg);border-radius:5px;overflow:hidden}.bar i{display:block;height:100%;width:0;transition:width .2s}
+table{border-collapse:collapse;width:100%;font-size:13px}th,td{padding:5px 7px;border-bottom:1px solid var(--ln);text-align:right}
+th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}td.w{color:var(--ok);font-weight:700}
+.sc{overflow-x:auto}
+</style></head><body><main class="wrap">
+<h1>Smart Traffic City</h1>
+<p class="sub">Төрт бағытты қиылыс. Бағдаршамды өзің басқар немесе алгоритмге тапсыр да, нәтижені салыстыр.</p>
+<div class="grid">
+<div><canvas id="cv" width="640" height="640" aria-label="Қиылыс"></canvas><div id="st"></div></div>
+<aside>
+<div class="pn">
+<h2>Басқару режимі</h2><div class="seg" id="mode"><button data-v="manual">Қолмен</button><button data-v="fixed">Тұрақты цикл</button><button data-v="adaptive" class="on">Бейімделгіш</button></div>
+<div id="mn" style="margin-top:8px;display:none"><div class="seg"><button data-a="0">Солтүстік–Оңтүстік жасыл</button><button data-a="1">Батыс–Шығыс жасыл</button></div><div class="mu">Бос орын пернесі де фазаны ауыстырады. Сары мен барлығына қызыл қауіпсіздік үшін автоматты қосылады.</div></div>
+<h2>Көлік ағыны</h2><div class="seg" id="scen"><button data-v="low">Аз</button><button data-v="mid" class="on">Орташа</button><button data-v="high">Көп</button></div>
+<h2>Жылдамдық</h2><div class="seg" id="spd"><button data-v="1" class="on">1×</button><button data-v="3">3×</button><button data-v="8">8×</button></div>
+<h2>Жедел көлік</h2><div class="seg"><button id="em">Жедел көлік шақыру</button><button id="rs">Қайта бастау</button></div>
+<label class="mu"><input type="checkbox" id="ae"> Жедел көлік өздігінен келіп тұрсын</label>
+</div>
+<div class="pn" style="margin-top:12px">
+<div class="row"><div><div class="big" id="sp">0</div><div class="mu">Өткен көлік</div></div><div><div class="big" id="sw">0</div><div class="mu">Орташа күту, с</div></div>
+<div><div class="big" id="sq">0</div><div class="mu">Қазіргі кезек</div></div><div><div class="big" id="sm">0</div><div class="mu">Ең ұзын кезек</div></div></div>
+<h2>Кептеліс индикаторы</h2><div id="qs"></div>
+</div></aside></div>
+<div class="pn" style="margin-top:16px"><h2 style="margin-top:0">Алгоритмдерді салыстыру</h2>
+<div class="seg"><button id="bm">Салыстыруды іске қосу (әрқайсысы 10 мин модель)</button><button id="et">Жедел көлік қауіпсіздік тесті</button></div>
+<div class="sc" id="out" style="margin-top:10px"><span class="mu">Бірдей кездейсоқ ағында тұрақты цикл (15 с жасыл) мен бейімделгіш басқару салыстырылады. Солтүстік–Оңтүстік бағыты ауыр жүктелген.</span></div></div>
+</main>
+<script>
+const H=4,L=4.5,S=5,AX=[[0,1],[2,3]],NM=['Солтүстік','Оңтүстік','Батыс','Шығыс'],AN=['Солтүстік–Оңтүстік','Батыс–Шығыс'];
+const SC={low:[.07,.04],mid:[.17,.08],high:[.26,.12]},SN={low:'Аз',mid:'Орташа',high:'Көп'},COL=['#e8d9a8','#8fb3c9','#d98c6b','#a9c79a','#c7a9d6'];
+function rng(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+class Sim{
+constructor(mode,scen,seed){this.mode=mode;this.scen=scen;this.r=rng(seed);this.r2=rng(seed+7);this.lanes=[[],[],[],[]];this.t=0;this.axis=0;this.ph='G';this.pt=0;this.tg=0;this.req=null;this.passed=0;this.ws=0;this.qs=0;this.n=0;this.qm=0;this.q=[0,0,0,0];this.conf=0;this.pre=false;this.ae=false}
+light(d){const a=d<2?0:1;if(a!==this.axis)return'R';return this.ph==='G'?'G':this.ph==='Y'?'Y':'R'}
+dem(a){let n=0;for(const d of AX[a])for(const c of this.lanes[d])if(c.s<0&&c.s>-45)n++;return n}
+emAx(){for(let d=0;d<4;d++)for(const c of this.lanes[d])if(c.em&&c.s<10&&c.s>-160)return d<2?0:1;return null}
+add(d,em){const l=this.lanes[d],b=l[l.length-1],s0=em?-110:-200;const c={s:b?Math.min(s0,b.s-L-3):s0,v:em?10:8,em,wait:0,done:0,col:(this.t*7|0)%5};l.push(c);return c}
+ctl(dt){const ea=this.emAx(),o=1-this.axis;this.pt+=dt;
+if(this.ph==='G'){let w=null;
+ if(ea!==null){this.pre=true;if(ea!==this.axis)w=ea}
+ else{this.pre=false;
+  if(this.mode==='fixed'&&this.pt>=15)w=o;
+  else if(this.mode==='adaptive'){const cu=this.dem(this.axis),ot=this.dem(o);if(this.pt>=6&&ot>0&&(cu===0||ot>=cu+3||this.pt>=30))w=o}
+  else if(this.mode==='manual'&&this.req===o&&this.pt>=2)w=o}
+ if(w!==null){this.ph='Y';this.pt=0;this.tg=w}}
+else if(this.ph==='Y'){if(this.pt>=3){this.ph='R';this.pt=0}}
+else if(this.pt>=2){if(ea!==null)this.tg=ea;this.axis=this.tg;this.ph='G';this.pt=0;this.req=null}}
+move(dt){for(let d=0;d<4;d++){const l=this.lanes[d],lt=this.light(d);
+ for(let i=0;i<l.length;i++){const c=l[i],ld=i?l[i-1]:null;let lim=1e9,vl=0,stop=false;
+  if(ld){lim=ld.s-L-1.5;vl=ld.v}
+  if(c.s<0){if(lt==='R')stop=true;else if(lt==='Y')stop=c.v*c.v/12<=-c.s-.5;
+   if(stop&&Math.max(-.5,c.s)<lim){lim=Math.max(-.5,c.s);vl=0}}
+  const g=lim-c.s,vm=c.em?16:12,ac=c.em?4:3;
+  const vs=g<=0?0:vl+(g-vl)/((c.v+vl)/8+1);
+  const v=Math.max(0,Math.min(c.v+ac*dt,vm,vs)),ns=Math.max(c.s,Math.min(c.s+v*dt,lim));
+  c.v=(ns-c.s)/dt;c.s=ns;
+  if(c.s<0&&c.v<.5)c.wait+=dt;
+  if(!c.done&&c.s>=0){c.done=1;this.passed++;this.ws+=c.wait}}
+ while(l.length&&l[0].s>40)l.shift()}}
+step(dt){this.t+=dt;this.ctl(dt);const rt=SC[this.scen];
+ for(let d=0;d<4;d++)if(this.r()<rt[d<2?0:1]*dt)this.add(d,false);
+ if(this.ae&&this.r2()<dt/200)this.add(this.r2()*4|0,true);
+ this.move(dt);if(this.light(0)!=='R'&&this.light(2)!=='R')this.conf++;
+ let tot=0;for(let d=0;d<4;d++){let q=0;for(const c of this.lanes[d])if(c.s<0&&c.v<1)q++;this.q[d]=q;tot+=q;if(q>this.qm)this.qm=q}
+ this.qs+=tot;this.n++}
+stats(){let sw=this.ws,n=this.passed;for(const l of this.lanes)for(const c of l)if(!c.done&&c.wait>0){sw+=c.wait;n++}
+ return{w:n?sw/n:0,p:this.passed,q:this.q.reduce((a,b)=>a+b,0),qa:this.n?this.qs/this.n/4:0,qm:this.qm}}}
+
+const $=id=>document.getElementById(id),cv=$('cv'),ctx=cv.getContext('2d'),cx=320,cy=320;
+let mode='adaptive',scen='mid',speed=1,sim,ae=false;
+function reset(){sim=new Sim(mode,scen,2026);sim.ae=ae}
+reset();
+const lv=q=>q<4?0:q<9?1:2,LC=['#16a34a','#d97706','#dc2626'],LN=['Еркін','Орташа','Кептеліс'];
+$('qs').innerHTML=NM.map((n,i)=>`<div class="q"><span>${n}</span><div class="bar"><i id="b${i}"></i></div><span id="t${i}"></span></div>`).join('');
+function seg(id,fn){$(id).addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;[...$(id).children].forEach(x=>x.classList.toggle('on',x===b));fn(b.dataset.v)})}
+seg('mode',v=>{mode=v;$('mn').style.display=v==='manual'?'block':'none';reset()});
+seg('scen',v=>{scen=v;reset()});seg('spd',v=>speed=+v);
+$('mn').addEventListener('click',e=>{const b=e.target.closest('button');if(b)sim.req=+b.dataset.a});
+addEventListener('keydown',e=>{if(e.code==='Space'&&mode==='manual'){e.preventDefault();sim.req=1-(sim.ph==='G'?sim.axis:sim.tg)}});
+$('em').onclick=()=>sim.add(Math.random()*4|0,true);$('rs').onclick=reset;$('ae').onchange=e=>{ae=e.target.checked;sim.ae=ae};
+
+function car(c,d){const p=c.s-L/2;let x,y;
+ if(d===0){x=cx-10;y=cy-H*S+p*S}else if(d===1){x=cx+10;y=cy+H*S-p*S}else if(d===2){y=cy+10;x=cx-H*S+p*S}else{y=cy-10;x=cx+H*S-p*S}
+ if(x<-30||y<-30||x>670||y>670)return;
+ const w=d<2?10:L*S,h=d<2?L*S:10;
+ ctx.fillStyle=c.em?'#f4f4f4':COL[c.col];ctx.fillRect(x-w/2,y-h/2,w,h);
+ if(c.em){ctx.fillStyle=(sim.t*6|0)%2?'#2563eb':'#ef4444';ctx.fillRect(x-w/2,y-h/2,d<2?w:6,d<2?6:h);ctx.fillRect(d<2?x-w/2:x+w/2-6,d<2?y+h/2-6:y-h/2,d<2?w:6,d<2?6:h)}}
+function draw(){ctx.fillStyle='#3d5a3a';ctx.fillRect(0,0,640,640);ctx.fillStyle='#2b2f31';ctx.fillRect(cx-H*S,0,H*S*2,640);ctx.fillRect(0,cy-H*S,640,H*S*2);
+ ctx.strokeStyle='#d9b84a';ctx.lineWidth=2;ctx.setLineDash([12,10]);ctx.beginPath();
+ ctx.moveTo(cx,0);ctx.lineTo(cx,cy-H*S);ctx.moveTo(cx,cy+H*S);ctx.lineTo(cx,640);ctx.moveTo(0,cy);ctx.lineTo(cx-H*S,cy);ctx.moveTo(cx+H*S,cy);ctx.lineTo(640,cy);ctx.stroke();ctx.setLineDash([]);
+ ctx.fillStyle='#ddd';ctx.fillRect(cx-H*S,cy-H*S-3,H*S,3);ctx.fillRect(cx,cy+H*S,H*S,3);ctx.fillRect(cx-H*S-3,cy,3,H*S);ctx.fillRect(cx+H*S,cy-H*S,3,H*S);
+ for(let d=0;d<4;d++)for(const c of sim.lanes[d])car(c,d);
+ const LP=[[cx-H*S-9,cy-H*S-8],[cx+H*S+9,cy+H*S+8],[cx-H*S-8,cy+H*S+9],[cx+H*S+8,cy-H*S-9]],BP=[[cx-24,26],[cx+24,614],[26,cy+24],[614,cy-24]];
+ for(let d=0;d<4;d++){const l=sim.light(d);ctx.fillStyle=l==='G'?'#22c55e':l==='Y'?'#facc15':'#ef4444';ctx.strokeStyle='#111';ctx.lineWidth=2;ctx.beginPath();ctx.arc(LP[d][0],LP[d][1],7,0,7);ctx.fill();ctx.stroke();
+  const q=sim.q[d];ctx.fillStyle=LC[lv(q)];ctx.beginPath();ctx.arc(BP[d][0],BP[d][1],15,0,7);ctx.fill();ctx.fillStyle='#fff';ctx.font='bold 14px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(q,BP[d][0],BP[d][1])}}
+function ui(){const s=sim.stats();$('sp').textContent=s.p;$('sw').textContent=s.w.toFixed(1);$('sq').textContent=s.q;$('sm').textContent=s.qm;
+ for(let d=0;d<4;d++){const q=sim.q[d],b=$('b'+d);b.style.width=Math.min(100,q*7)+'%';b.style.background=LC[lv(q)];$('t'+d).textContent=q+' · '+LN[lv(q)]}
+ const ph=sim.ph==='G'?AN[sim.axis]+' жасыл':sim.ph==='Y'?AN[sim.axis]+' сары (ауысу)':'Барлығына қызыл (қауіпсіздік)';
+ $('st').textContent='Фаза: '+ph+' · '+Math.floor(sim.pt)+' с'+(sim.pre?' · ЖЕДЕЛ КӨЛІК: басымдық қосулы':'')+' · Уақыт: '+Math.floor(sim.t)+' с';
+ [...$('mn').querySelectorAll('button')].forEach(b=>b.classList.toggle('on',+b.dataset.a===(sim.ph==='G'?sim.axis:sim.tg)))}
+let lt=0,acc=0;
+function frame(ts){const dt=Math.min(.1,(ts-lt)/1000);lt=ts;acc+=dt*speed;while(acc>=.1){sim.step(.1);acc-=.1}draw();ui();requestAnimationFrame(frame)}
+requestAnimationFrame(frame);
+
+$('bm').onclick=()=>{let h='<table><tr><th>Ағын</th><th>Алгоритм</th><th>Орташа күту, с</th><th>Өткен көлік</th><th>Орташа кезек</th><th>Ең ұзын кезек</th></tr>';
+ for(const sc of['low','mid','high']){const R={};
+  for(const m of['fixed','adaptive']){const s=new Sim(m,sc,77);for(let i=0;i<6000;i++)s.step(.1);R[m]=s.stats()}
+  for(const m of['fixed','adaptive']){const r=R[m],win=r.w<=R[m==='fixed'?'adaptive':'fixed'].w;
+   h+=`<tr><td>${SN[sc]}</td><td>${m==='fixed'?'Тұрақты цикл':'Бейімделгіш'}</td><td class="${win?'w':''}">${r.w.toFixed(1)}</td><td>${r.p}</td><td>${r.qa.toFixed(1)}</td><td>${r.qm}</td></tr>`}}
+ $('out').innerHTML=h+'</table><div class="mu">Жасыл түс: күту уақыты аз алгоритм. Күту уақыты — көліктің тоқтап тұрған уақыты.</div>'};
+$('et').onclick=()=>{let h='<table><tr><th>Алгоритм</th><th>Жасыл жанғанша, с</th><th>Өту уақыты, с</th><th>Қайшылықты жасыл</th></tr>';
+ for(const m of['fixed','adaptive']){const s=new Sim(m,'mid',5);while(!(s.t>30&&s.ph==='G'&&s.axis===0&&s.pt>3))s.step(.1);
+  const t0=s.t,c=s.add(2,true);let tg=null;
+  for(let i=0;i<2000&&!c.done;i++){s.step(.1);if(tg===null&&s.light(2)==='G')tg=s.t-t0}
+  h+=`<tr><td>${m==='fixed'?'Тұрақты цикл':'Бейімделгіш'}</td><td>${tg===null?'—':tg.toFixed(1)}</td><td>${c.done?(s.t-t0).toFixed(1):'өтпеді'}</td><td>${s.conf}</td></tr>`}
+ $('out').innerHTML=h+'</table><div class="mu">Жедел көлік қызыл жанып тұрған бағытқа келеді: бағдаршам сары (3 с) және барлығына қызыл (2 с) арқылы ауысады, жасыл бағыт қайшылықсыз.</div>'};
+</script></body></html>
